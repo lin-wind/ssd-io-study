@@ -3,7 +3,7 @@
 /sys/bus/pci/devices/0000:00:15.0  上游：PCIe 端口级链路状态
 为/sys/devices/pci0000:00/0000:00:15.0的软连接
 
-ls /sys/bus/pci/devices/0000:00:15.0   
+$ ls /sys/bus/pci/devices/0000:00:15.0   
 0000:00:15.0:pcie001/     current_link_speed  irq             numa_node          resource
 0000:00:15.0:pcie004/     current_link_width  link/           pci_bus/           revision
 0000:03:00.0/             d3cold_allowed      local_cpulist   power/             secondary_bus_number
@@ -14,12 +14,14 @@ class                     driver_override     modalias        reset             
 config                    enable              msi_bus         reset_method       uevent
 consistent_dma_mask_bits  firmware_node@      msi_irqs/       reset_subordinate  vendor
 
+$ cat /sys/bus/pci/devices/0000:00:15.0/reset_method 
+pm
 
-
+reset_subordinate 总线/链路级复位 Hot Reset
 
 /sys/bus/pci/devices/0000:00:15.0/0000:03:00.0   下游：NVMe 设备级链路状态
 
-ls /sys/bus/pci/devices/0000:00:15.0/0000:03:00.0
+$ ls /sys/bus/pci/devices/0000:00:15.0/0000:03:00.0
 acpi_index                current_link_width  irq             msi_bus      rescan        subsystem@
 aer/                      d3cold_allowed      label           msi_irqs/    reset         subsystem_device
 ari_enabled               device              link/           numa_node    reset_method  subsystem_vendor
@@ -30,20 +32,27 @@ consistent_dma_mask_bits  enable              max_link_width  power_state  revis
 current_link_speed        firmware_node@      modalias        remove       rom
 
 
+$ cat /sys/bus/pci/devices/0000:00:15.0/0000:03:00.0/reset_method 
+pm bus
 
-sudo lspci -s 00:15.0 -vvv
+
+
+$ sudo lspci -s 00:15.0 -vvv
 config配置文件
 
-sudo lspci -s 03:00.0 -vvv
+$ sudo lspci -s 03:00.0 -vvv
 config配置文件
 
+$ setpci ...
+
+$ pcilmr ...  (属于pciutils包)
 ```
 
 
 ### MSI / MSI-X (Message Signaled Interrupts-Extended)
 
 ```
-cat /proc/interrupts | grep nvme    
+$ cat /proc/interrupts | grep nvme    
             CPU0       CPU1       CPU2       CPU3
   57:          0          0          0         97 PCI-MSIX-0000:03:00.0    0-edge      nvme0q0 (Admin队列)
   58:         45          0          0          0 PCI-MSIX-0000:03:00.0    1-edge      nvme0q1 (IO队列1)
@@ -71,7 +80,7 @@ cat /proc/interrupts | grep nvme
 ```
 
 ### AER (Advanced Error Reporting)
-
+```
 static const struct pci_error_handlers nvme_err_handler = {
 	.error_detected	= nvme_error_detected,    
 	.slot_reset	= nvme_slot_reset,
@@ -79,6 +88,7 @@ static const struct pci_error_handlers nvme_err_handler = {
 	.reset_prepare	= nvme_reset_prepare,
 	.reset_done	= nvme_reset_done,
 };
+```
 
 - Correctable（可纠正）：硬件自己搞定，不回调通知驱动
 - Non-Fatal（非致命）：通知驱动，链路没死，只报错不复位
@@ -87,7 +97,7 @@ static const struct pci_error_handlers nvme_err_handler = {
 ### ASPM (Active State Power Management)
 
 ```
-cat /sys/module/pcie_aspm/parameters/policy
+$ cat /sys/module/pcie_aspm/parameters/policy
 [default] performance powersave powersupersave 
 ```
 
@@ -96,6 +106,3 @@ cat /sys/module/pcie_aspm/parameters/policy
 
 
 ### FLR (function-levle reset)
-
-.../0000:03:00.0/reset
- 

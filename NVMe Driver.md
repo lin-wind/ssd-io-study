@@ -18,26 +18,32 @@ E: You must put some 'deb-src' URIs in your sources.list
 
 `apt-get source linux-hwe-6.17`
 查看/debian/changelog或者是下载的.dsc发现为Main version: 6.17.0-41.41~24.04.1
-升级本地ubuntu 内核到-41
+升级本地ubuntu 内核到-41 和 安装对应开发头文件包
 `sudo apt install linux-image-6.17.0-41-generic linux-headers-6.17.0-41-generic`
 `sudo reboot`
 
 
 查看相关依赖是否安装
-`dpkg -l build-essential libncurses-dev bison flex libssl-dev libelf-dev libdw-dev dwarves`
+`dpkg -l build-essential libncurses-dev bison flex libssl-dev libelf-dev libdw-dev dwarves gawk`
 安装对应包
-`sudo apt install -y build-essential libncurses-dev bison flex libssl-dev libelf-dev libdw-dev dwarves `
+`sudo apt install -y build-essential libncurses-dev bison flex libssl-dev libelf-dev libdw-dev dwarves gawk`
 
 
 在对应根目录下进行模块编译配置
-`make menuconfig`
+方式一: 本地目录编译
+`make olddefconfig `  根据旧的.config生成.config文件
 
-`make olddefconfig && make prepare`
+`make modules_prepare`  准备模块化编译
 
-`make -C /lib/modules/6.17.0-41-generic/build M=$PWD/drivers/nvme/host modules`(修改代码重新编译使用此命令)
+`make M=drivers/nvme/host modules` 模块编译
+
+方式二: 借用自带环境
+
+`make -C /lib/modules/6.17.0-41-generic/build M=$PWD/drivers/nvme/host modules`  
 
 编译出对应nvme.ko nvme-fabrics.ko nvme-fc.ko nvme-core.ko等等文件
 
+(内核编译 make menuconfig  make -j$(nproc) )
 ```
 # 查看 /lib/modules/$(uname -r)/ nvme驱动信息
 $ modinfo nvme
@@ -90,9 +96,6 @@ $ echo 2 | sudo tee /sys/module/nvme/parameters/poll_queues
 `sudo modprobe nvme`
 
 ```
-
-
-
 # 创建一个静态变量，默认设置为0
 static bool my_debug_mode = false;
 # 创造功能开关：将其注册为内核模块参数，类型为 bool，权限为 0644
@@ -316,6 +319,28 @@ static struct pci_driver nvme_driver = {
 
 [module_exit] --> nvme_exit()
 -> pci_unregister_driver(&nvme_driver)
+
+---
+
+static const struct blk_mq_ops nvme_mq_admin_ops = {
+	.queue_rq	= nvme_queue_rq,
+	.complete	= nvme_pci_complete_rq,
+	.init_hctx	= nvme_admin_init_hctx,
+	.init_request	= nvme_pci_init_request,
+	.timeout	= nvme_timeout,
+};
+
+static const struct blk_mq_ops nvme_mq_ops = {
+	.queue_rq	= nvme_queue_rq,
+	.queue_rqs	= nvme_queue_rqs,
+	.complete	= nvme_pci_complete_rq,
+	.commit_rqs	= nvme_commit_rqs,
+	.init_hctx	= nvme_init_hctx,
+	.init_request	= nvme_pci_init_request,
+	.map_queues	= nvme_pci_map_queues,
+	.timeout	= nvme_timeout,
+	.poll		= nvme_poll,
+};
 ```
 
 - nvme_probe()
@@ -353,36 +378,104 @@ nvme_ctrl_state
 ```
 
 nvme_probe()
-    -> nvme_pci_alloc_dev()
-    -> nvme_add_ctrl()
-    -> nvme_dev_map()
-    -> nvme_pci_alloc_iod_mempool()
-    -> nvme_pci_enable()
-        -> enable PCI
-        -> read CAP/CSTS
-        -> configure admin queue
-    -> nvme_alloc_admin_tag_set()
-    -> nvme_change_ctrl_state()
-    -> NEW -> CONNETING
-    -> nvme_init_ctrl_finish()
-        -> identify controller
-    -> nvme_ctrl_meta_sgl_supported()
-    -> nvme_dbbuf_dma_alloc()
-    -> nvme_setup_host_mem()
-    -> nvme_update_attrs()
-    -> nvme_setup_io_queues()
-        -> set queue count
-        -> setup IRQs
-        -> create IO SQ/CQ
-    -> nvme_alloc_io_tag_set()
-        -> connect to blk-mq
-    -> nvme_dbbuf_set()
-    -> nvme_change_ctrl_state()
-    -> CONNECTING -> LIVE
-    -> pci_set_drvdata()
-    -> nvme_start_ctrl()
-    -> nvme_put_ctrl()
-    -> flush_work()
+  │
+  ├── nvme_pci_alloc_dev(pdev, id) [pci.c]
+  │   ├── kzalloc_node()                      // 分配 struct nvme_dev 实例
+  │   ├── INIT_WORK(&dev->ctrl.reset_work)    // 绑定 reset_work 
+  |   ├── nvme_init_ctrl() [core.c]           // 初始化通用控制器基类
+  |   ├── dma_set_mask_and_coherent()        // 设置 64位 DMA寻址 
+  │   └── 设置 单次I/O 硬件边界              // max_hw_sectors=1MB, max_segments=256, max_integrity_segments=1
+  │
+  ├── nvme_add_ctrl(&dev->ctrl) [core.c]
+  │   ├── dev_set_name()                     // 命名字符设备名称为 "nvme0" (基于 instance 编号)
+  │   ├── cdev_init(&ctrl->cdev, &nvme_dev_fops)     // 绑定用户态操作接口 (支持 nvme-cli 的 ioctl 与 uring_cmd)
+  │   ├── cdev_device_add()                  // 正式注册字符设备，生成 /dev/nvme0 与 sysfs 目录
+  │   ├── dev_pm_qos_update...()             // 初始化 PM QoS 延迟容忍度 (服务于 APST 节能休眠)
+  │   └── nvme_fault_inject_init()           // 初始化 debugfs 故障注入控制节点
+  │   
+  │
+  ├── nvme_dev_map(dev) [pci.c]
+  │   ├── pci_request_mem_regions()          // 向系统独占申请 PCIe BAR0 物理地址空间
+  │   └── nvme_remap_bar()                   // 调用 ioremap() 映射 BAR0 物理空间到内核虚拟内存
+  │       ├── dev->bar = ioremap(...)      // 控制器寄存器基地址 (用于后续读写 CAP/CC/CSTS)
+  │       └── dev->dbs = dev->bar + NVME_REG_DBS (4096) // 定位 Doorbell 门铃起始虚拟地址 (SQ0 Tail Doorbell 偏移)
+  │
+  ├── nvme_pci_alloc_iod_mempool(dev) [pci.c]
+  │   ├── mempool_create_node(dmavec)         // 创建 DMA 散列向量紧急内存池 (支持 256 个物理页，防 OOM 刷盘死锁)
+  │   └── mempool_create_node(iod_meta)      // 创建端到端数据保护 (T10 DIF/PI) 元数据紧急内存池
+  │
+  ├── nvme_pci_enable(dev) [pci.c]
+  │   ├── pci_enable_device_mem() & pci_set_master()     // 唤醒 PCIe 硬件物理层并使能 Bus Master 
+  │   ├── lo_hi_readq(dev->bar + NVME_REG_CAP)     // 读取 CAP 寄存器 (获取 MQES 最大深度、DSTRD 门铃步长)
+  │   ├── nvme_map_cmb()                     // 探测并映射 SSD 板载 CMB 内存
+  │   └── nvme_pci_configure_admin_queue()   // 配置并硬件启动 Admin 队列
+  │       ├── nvme_disable_ctrl()                // 写 CC.EN=0 关闭控制器
+  │       ├── nvme_alloc_queue(0)                // 调用 dma_alloc_coherent 分配 SQ0/CQ0 物理 DMA 内存
+  │       ├── 写入 AQA / ASQ / ACQ 寄存器        // 告诉 SSD 硬件 SQ0/CQ0 的 DMA 物理首地址
+  │       ├── nvme_enable_ctrl()                 // 写入 CC.EN=1 并等待 CSTS.RDY==1 (主控就绪)
+  │       ├── nvme_init_queue(0)                 // 初始化游标：cq_head=0, cq_phase=1, 定位 q_db 门铃
+  │       ├── queue_request_irq()                // 绑定 0 号中断向量与 nvme_irq 中断处理函数
+  │       └── set_bit(NVMEQ_ENABLED)             // 标记 Admin 队列状态为已启用 (online_queues++)
+  │
+  ├── nvme_alloc_admin_tag_set(dev) [core.c]
+  │   ├── blk_mq_alloc_tag_set()             // 分配 Admin 标签池 (深度32，管理 0~31 号 Command ID/CID)
+  │   └── blk_mq_alloc_queue()           // 创建 ctrl->admin_q 请求队列 (绑定 60秒 超时检测机制)
+  │
+  ├── nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_CONNECTING) [core.c]
+  │   └── 【状态机】：从 NVME_CTRL_NEW  ──>  NVME_CTRL_CONNECTING (允许发 Admin 命令)
+  │
+  ├── nvme_init_ctrl_finish(&dev->ctrl) [core.c]
+  │   ├── reg_read32(NVME_REG_VS)            // 读取 NVMe 版本号寄存器 (如 1.4 / 2.0)
+  │   ├── nvme_init_identify()               // 下发 Identify Controller (0x06) 读取 4KB 身份信息
+  │   │   └── nvme_identify_ctrl()         // 解析 SN、MN、FW版本、MDTS
+  │   ├── 配置 (时间戳/APST/hwmon)        // 同步系统时间戳、配置节能休眠并注册 hwmon 温度监控
+  │   └── nvme_start_keep_alive()            // 启动保活心跳定时器
+  │
+  ├── nvme_ctrl_meta_sgl_supported(&dev->ctrl)
+  │   └── 检查控制器是否支持元数据 SGL 格式 (用于 T10 DIF/PI 端到端数据校验)
+  │
+  ├── nvme_dbbuf_dma_alloc(dev) [pci.c]
+  │   └── 若主控支持 Shadow Doorbell，在主机内存中为影子门铃与 EventIdx 分配 DMA 内存
+  │
+  ├── nvme_setup_host_mem(dev) [pci.c]
+  │   └── 若是 DRAM-less 盘且支持 HMB，按 hmpre/hmmin 借出 Host 内存并通知 SSD
+  │
+  ├── nvme_update_attrs(&dev->ctrl) [pci.c]
+  │   └── 根据 Identify 读到的属性，动态刷新 sysfs 中的只读/读写节点
+  │
+  ├── nvme_setup_io_queues(dev) [pci.c]
+  │   ├── nvme_set_queue_count()             // 协商 I/O 队列总数
+  │   ├── nvme_remap_bar()                   // 重新映射 BAR0 完整空间 (覆盖所有 IO 队列的门铃)
+  │   ├── nvme_setup_irqs()                  // 申请 N+1 个 MSI-X 中断向量并自动绑定 CPU 核心亲和性
+  │   └── nvme_create_io_queues()            // 循环创建各核 SQ/CQ 队列:
+  │       ├── 下发 Create I/O CQ (0x05)    // 告知 SSD 各 CQ 的 DMA 物理基地址与对应 MSI-X 中断号
+  │       ├── 下发 Create I/O SQ (0x01)    // 告知 SSD 各 SQ 的 DMA 物理基地址并关联对应 CQ
+  │       └── queue_request_irq()          // 绑定各队列 MSI-X 中断号与 nvme_irq 中断处理函数
+  │
+  ├── nvme_alloc_io_tag_set(&dev->ctrl, &dev->tagset, &nvme_mq_ops, ... ) [core.c]
+  │   ├── blk_mq_alloc_tag_set()             // 初始化 I/O 标签池 (绑定 N 个硬件队列与 队列深度)
+  │   └── 绑定核心业务 nvme_mq_ops     // .queue_rq(写盘发命令), .timeout(30秒超时检测)
+  │
+  ├── nvme_dbbuf_set(dev) [pci.c]
+  │   └── 下发 Doorbell Buffer Config  SSD 注册影子门铃物理地址
+  │
+  ├── nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_LIVE) [core.c]
+  │   └── 【状态机】：从 NVME_CTRL_CONNECTING  ──>  NVME_CTRL_LIVE (允许业务读写)
+  │
+  ├── pci_set_drvdata(pdev, dev)
+  │   └── 把 struct nvme_dev 绑定到 pci_dev
+  │
+  ├── nvme_start_ctrl(&dev->ctrl) [core.c]
+  │   ├── nvme_enable_aen()                  // 下发 AEN 异步事件请求
+  │   └── nvme_queue_scan()                  // 将 scan_work 扫描任务推入异步工作队列 nvme_wq
+  │
+  ├── nvme_put_ctrl(&dev->ctrl) 
+  │   └── 释放 probe 过程中持有的临时控制器引用计数 (平衡计数器)
+  │
+  └── flush_work(&dev->ctrl.scan_work) 
+      └── 同步等待扫描任务完成，确保 nvme_probe() 返回时，/dev/nvme0n1 节点出现在系统
+
+
 
 ```
 

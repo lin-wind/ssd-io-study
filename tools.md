@@ -35,7 +35,7 @@ aqu-sz Average Queue Size 平均队列长度
 
 
 ## blktrace 
-`blktrace`
+`blktrace`来自于源码/kernel/trace/blktrace.c
 
 ```
 # -d 查看特定磁盘 -o 指定输出文件名 -w 设置运行时间 -a 事件过滤器 -b 内核事件缓冲大小(默认512KB) -n 缓冲区数量(默认4个)
@@ -199,14 +199,11 @@ $ trace-cmd clear
 
 ## eBPF前端工具
 
-| 探针类型 | 全称 | 作用对象 | 探测位置 | 特点与局限 |
-| :--- | :--- | :--- | :--- | :--- |
-| **kprobe** | Kernel Probe | 内核空间 | 任意内核函数起始处 | 动态追踪，内核更新可能导致函数名失效 |
-| **kretprobe** | Kernel Return Probe | 内核空间 | 内核函数返回处 | 用于获取函数返回值 and 执行耗时 |
-| **uprobe** | User Probe | 用户空间 | 用户态程序/库的函数起始 | 动态追踪，解析用户态符号表，有一定开销 |
-| **uretprobe** | User Return Probe | 用户空间 | 用户态函数返回处 | 用于获取用户态函数返回值 and 执行耗时 |
-| **USDT** | User Statically Defined Tracing | 用户空间 | 开发者预定义的特定位置 | 静态埋点，稳定、高性能、参数易读 |
-| **tracepoint** | Kernel Tracepoint | 内核空间 | 内核中预定义的特定位置 | 静态埋点，非常稳定、高性能 |
+
+探针类型
+- 动态探针:kprobe、kretprobe、uprobe、uretprobe
+- 静态探针:tracepoint、USDT
+
 
 ### bpftrace [bpftrace](https://github.com/bpftrace/bpftrace)
 
@@ -238,10 +235,7 @@ $ sudo biosnoop-bpfcc
 
 ### biotop
 
-
 ### bitesize
-
-
 
 ### biolatpcts
 

@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1522.89325 1273" width="1522.89325" height="1273" style="--bg:#FFFFFF;--fg:#3B3B3B;--line:#3B3B3B;--accent:#005FB8;--muted:#3B3B3BCC;--surface:#F8F8F8;--border:#3B3B3B;background:var(--bg)">
+<style>
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="seq-arrow" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" />
+  </marker>
+  <marker id="seq-arrow-open" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polyline points="0 0, 8 2.5, 0 5" fill="none" stroke="var(--_arrow)" stroke-width="1" />
+  </marker>
+</defs>
+<g class="block" data-type="loop" data-label="循环 count 次提取事件">
+  <rect x="67.28574999999998" y="1123" width="318.44499999999994" height="100" rx="0" ry="0" fill="none" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="67.28574999999998" y="1123" width="174.07000000000002" height="18" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="73.28574999999998" y="1132" font-size="11" font-weight="600" fill="var(--_text-sec)" dy="3.8499999999999996">loop [循环 count 次提取事件]</text>
+</g>
+<line class="lifeline" data-actor="fio" x1="117.28574999999998" y1="70" x2="117.28574999999998" y2="1243" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="plugin" x1="286.50825" y1="70" x2="286.50825" y2="1243" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="nvme_cmd" x1="506.0647499999999" y1="70" x2="506.0647499999999" y2="1243" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="nvme_qpair" x1="719.3227499999999" y1="70" x2="719.3227499999999" y2="1243" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="nvme_pcie" x1="949.25325" y1="70" x2="949.25325" y2="1243" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<g class="message" data-from="fio" data-to="plugin" data-label="spdk_fio_queue(td, io_u)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="117.28574999999998" y1="90" x2="286.50825" y2="90" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="201.897" y="80" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">spdk_fio_queue(td, io_u)</text>
+</g>
+<g class="message" data-from="plugin" data-to="nvme_cmd" data-label="spdk_nvme_ns_cmd_writev_with_md(..., cb_fn=spdk_fio_completion_cb)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="286.50825" y1="130" x2="506.0647499999999" y2="130" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="396.28649999999993" y="120" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">spdk_nvme_ns_cmd_writev_with_md(..., cb_fn=spdk_fio_completion_cb)</text>
+</g>
+<g class="message" data-from="nvme_cmd" data-to="nvme_cmd" data-label="_nvme_ns_cmd_rw_req_init_sgl() (分配请求结构体)" data-line-style="solid" data-arrow-head="filled" data-self="true">
+  <polyline points="506.0647499999999,170 536.0647499999999,170 536.0647499999999,190 506.0647499999999,190" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="544.0647499999999" y="180" font-size="11" text-anchor="start" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">_nvme_ns_cmd_rw_req_init_sgl() (分配请求结构体)</text>
+</g>
+<g class="message" data-from="nvme_cmd" data-to="nvme_cmd" data-label="_nvme_ns_cmd_rw() -&gt; _nvme_ns_cmd_setup_request() (构造 64B SQE / 拆分)" data-line-style="solid" data-arrow-head="filled" data-self="true">
+  <polyline points="506.0647499999999,240 536.0647499999999,240 536.0647499999999,260 506.0647499999999,260" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="544.0647499999999" y="250" font-size="11" text-anchor="start" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">_nvme_ns_cmd_rw() -&gt; _nvme_ns_cmd_setup_request() (构造 64B SQE / 拆分)</text>
+</g>
+<g class="message" data-from="nvme_cmd" data-to="nvme_qpair" data-label="nvme_qpair_submit_request()" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="506.0647499999999" y1="310" x2="719.3227499999999" y2="310" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="612.6937499999999" y="300" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">nvme_qpair_submit_request()</text>
+</g>
+<g class="message" data-from="nvme_qpair" data-to="nvme_pcie" data-label="nvme_transport_qpair_submit_request() -&gt; nvme_pcie_qpair_submit_request()" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="719.3227499999999" y1="350" x2="949.25325" y2="350" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="834.288" y="340" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">nvme_transport_qpair_submit_request() -&gt; nvme_pcie_qpair_submit_request()</text>
+</g>
+<g class="message" data-from="nvme_pcie" data-to="nvme_pcie" data-label="g_nvme_pcie_build_req_table (构造 PRP/SGL DMA 映射)" data-line-style="solid" data-arrow-head="filled" data-self="true">
+  <polyline points="949.25325,390 979.25325,390 979.25325,410 949.25325,410" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="987.25325" y="400" font-size="11" text-anchor="start" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">g_nvme_pcie_build_req_table (构造 PRP/SGL DMA 映射)</text>
+</g>
+<g class="message" data-from="nvme_pcie" data-to="nvme_pcie" data-label="nvme_pcie_qpair_submit_tracker() -&gt; nvme_pcie_copy_command() (写入 Submission Queue 环形缓冲区)" data-line-style="solid" data-arrow-head="filled" data-self="true">
+  <polyline points="949.25325,460 979.25325,460 979.25325,480 949.25325,480" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="987.25325" y="470" font-size="11" text-anchor="start" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">nvme_pcie_qpair_submit_tracker() -&gt; nvme_pcie_copy_command() (写入 Submission Queue 环形缓冲区)</text>
+</g>
+<g class="message" data-from="nvme_pcie" data-to="nvme_pcie" data-label="nvme_pcie_qpair_ring_sq_doorbell() -&gt; spdk_mmio_write_4() (敲硬件 SQ Tail Doorbell 门铃寄存器)" data-line-style="solid" data-arrow-head="filled" data-self="true">
+  <polyline points="949.25325,530 979.25325,530 979.25325,550 949.25325,550" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="987.25325" y="540" font-size="11" text-anchor="start" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">nvme_pcie_qpair_ring_sq_doorbell() -&gt; spdk_mmio_write_4() (敲硬件 SQ Tail Doorbell 门铃寄存器)</text>
+</g>
+<g class="message" data-from="plugin" data-to="fio" data-label="返回 FIO_Q_QUEUED 状态" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="286.50825" y1="600" x2="117.28574999999998" y2="600" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="201.897" y="590" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">返回 FIO_Q_QUEUED 状态</text>
+</g>
+<g class="message" data-from="fio" data-to="plugin" data-label="spdk_fio_getevents(td, min, max)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="117.28574999999998" y1="655" x2="286.50825" y2="655" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="201.897" y="645" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">spdk_fio_getevents(td, min, max)</text>
+</g>
+<g class="message" data-from="plugin" data-to="nvme_qpair" data-label="spdk_nvme_qpair_process_completions()" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="286.50825" y1="695" x2="719.3227499999999" y2="695" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="502.91549999999995" y="685" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">spdk_nvme_qpair_process_completions()</text>
+</g>
+<g class="message" data-from="nvme_qpair" data-to="nvme_pcie" data-label="nvme_transport_qpair_process_completions() -&gt; nvme_pcie_qpair_process_completions()" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="719.3227499999999" y1="735" x2="949.25325" y2="735" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="834.288" y="725" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">nvme_transport_qpair_process_completions() -&gt; nvme_pcie_qpair_process_completions()</text>
+</g>
+<g class="message" data-from="nvme_pcie" data-to="nvme_pcie" data-label="检查 Completion Queue (Phase Bit 翻转)" data-line-style="solid" data-arrow-head="filled" data-self="true">
+  <polyline points="949.25325,775 979.25325,775 979.25325,795 949.25325,795" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="987.25325" y="785" font-size="11" text-anchor="start" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">检查 Completion Queue (Phase Bit 翻转)</text>
+</g>
+<g class="message" data-from="nvme_pcie" data-to="nvme_pcie" data-label="nvme_pcie_qpair_complete_tracker() -&gt; nvme_complete_request()" data-line-style="solid" data-arrow-head="filled" data-self="true">
+  <polyline points="949.25325,845 979.25325,845 979.25325,865 949.25325,865" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="987.25325" y="855" font-size="11" text-anchor="start" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">nvme_pcie_qpair_complete_tracker() -&gt; nvme_complete_request()</text>
+</g>
+<g class="message" data-from="nvme_pcie" data-to="plugin" data-label="cb_fn() -&gt; 回调 spdk_fio_completion_cb(fio_req, &amp;cpl)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="949.25325" y1="915" x2="286.50825" y2="915" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="617.88075" y="905" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">cb_fn() -&gt; 回调 spdk_fio_completion_cb(fio_req, &amp;cpl)</text>
+</g>
+<g class="message" data-from="plugin" data-to="plugin" data-label="将完成的 io_u 放入 iocq[iocq_count++] 并设置状态 (error=0)" data-line-style="solid" data-arrow-head="filled" data-self="true">
+  <polyline points="286.50825,955 316.50825,955 316.50825,975 286.50825,975" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="324.50825" y="965" font-size="11" text-anchor="start" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">将完成的 io_u 放入 iocq[iocq_count++] 并设置状态 (error=0)</text>
+</g>
+<g class="message" data-from="nvme_pcie" data-to="nvme_pcie" data-label="nvme_pcie_qpair_ring_cq_doorbell() -&gt; spdk_mmio_write_4() (更新 CQ Head Doorbell 释放槽位)" data-line-style="solid" data-arrow-head="filled" data-self="true">
+  <polyline points="949.25325,1025 979.25325,1025 979.25325,1045 949.25325,1045" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="987.25325" y="1035" font-size="11" text-anchor="start" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">nvme_pcie_qpair_ring_cq_doorbell() -&gt; spdk_mmio_write_4() (更新 CQ Head Doorbell 释放槽位)</text>
+</g>
+<g class="message" data-from="plugin" data-to="fio" data-label="return fio_thread-&gt;iocq_count (返回本次收割到的完成总数 count)" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="286.50825" y1="1095" x2="117.28574999999998" y2="1095" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="201.897" y="1085" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">return fio_thread-&gt;iocq_count (返回本次收割到的完成总数 count)</text>
+</g>
+<g class="message" data-from="fio" data-to="plugin" data-label="spdk_fio_event(td, idx)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="117.28574999999998" y1="1163" x2="286.50825" y2="1163" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="201.897" y="1153" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">spdk_fio_event(td, idx)</text>
+</g>
+<g class="message" data-from="plugin" data-to="fio" data-label="return fio_thread-&gt;iocq[idx] (获取已完成的 io_u 供 fio 统计时延与 IOPS)" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="286.50825" y1="1203" x2="117.28574999999998" y2="1203" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="201.897" y="1193" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">return fio_thread-&gt;iocq[idx] (获取已完成的 io_u 供 fio 统计时延与 IOPS)</text>
+</g>
+<g class="note" data-position="over" data-actors="fio,nvme_pcie">
+  <polygon points="414.7125,608 645.8264999999999,608 651.8264999999999,614 651.8264999999999,631 414.7125,631" fill="var(--bg)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <polygon points="645.8264999999999,608 651.8264999999999,614 645.8264999999999,614" fill="var(--_inner-stroke)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="533.2695" y="619.5" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">【阶段二：I/O 完成收割 (Poll Completion)】</text>
+</g>
+<g class="actor" data-id="fio" data-label="fio Core" data-type="participant">
+  <rect x="77.28574999999998" y="30" width="80" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="117.28574999999998" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">fio Core</text>
+</g>
+<g class="actor" data-id="plugin" data-label="app/fio/nvme/fio_plugin.c" data-type="participant">
+  <rect x="197.28575" y="30" width="178.44499999999996" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="286.50825" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">app/fio/nvme/fio_plugin.c</text>
+</g>
+<g class="actor" data-id="nvme_cmd" data-label="lib/nvme/nvme_ns_cmd.c" data-type="participant">
+  <rect x="415.73074999999994" y="30" width="180.66799999999995" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="506.0647499999999" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">lib/nvme/nvme_ns_cmd.c</text>
+</g>
+<g class="actor" data-id="nvme_qpair" data-label="lib/nvme/nvme_qpair.c" data-type="participant">
+  <rect x="636.39875" y="30" width="165.84799999999996" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="719.3227499999999" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">lib/nvme/nvme_qpair.c</text>
+</g>
+<g class="actor" data-id="nvme_pcie" data-label="lib/nvme/nvme_pcie.c (硬件层)" data-type="participant">
+  <rect x="842.24675" y="30" width="214.013" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="949.25325" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">lib/nvme/nvme_pcie.c (硬件层)</text>
+</g>
+</svg>
