@@ -1,155 +1,105 @@
-### NVMe Driver
+# Linux NVMe Driver
 
-### 下载源码编译驱动
+## 1. NVMe 驱动
+
+### 1.1 内核模块编译
 驱动基于6.17.0-41-generic 环境 24.04.1-Ubuntu
 
-`sudo apt update `
+```bash
+$ sudo apt update 
 
-`apt-get source linux-hwe-6.17`
-提示
+$ apt-get source linux-hwe-6.17
+# 提示
 Reading package lists... Done
 E: You must put some 'deb-src' URIs in your sources.list
 
+# 修改配置文件
+$ sudo sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources
 
-修改配置文件
-`sudo sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources`
+$ sudo apt update 
+$ apt-get source linux-hwe-6.17
+# 查看/debian/changelog或者是下载的.dsc发现为Main version: 6.17.0-41.41~24.04.1
+# 升级本地ubuntu 内核到-41 和 安装对应开发头文件包
+$ sudo apt install linux-image-6.17.0-41-generic linux-headers-6.17.0-41-generic
+$ sudo reboot
 
-`sudo apt update `
+# 查看相关依赖是否安装
+$ dpkg -l build-essential libncurses-dev bison flex libssl-dev libelf-dev libdw-dev dwarves gawk
+# 安装对应包
+$ sudo apt install -y build-essential libncurses-dev bison flex libssl-dev libelf-dev libdw-dev dwarves gawk
 
-`apt-get source linux-hwe-6.17`
-查看/debian/changelog或者是下载的.dsc发现为Main version: 6.17.0-41.41~24.04.1
-升级本地ubuntu 内核到-41 和 安装对应开发头文件包
-`sudo apt install linux-image-6.17.0-41-generic linux-headers-6.17.0-41-generic`
-`sudo reboot`
+# 在对应根目录下进行模块编译配置
+# 方式一: 本地目录编译
+$ make olddefconfig      # 根据旧的.config生成.config文件
+$ make modules_prepare     # 准备模块化编译
+$ make M=drivers/nvme/host modules   # 模块编译
 
-
-查看相关依赖是否安装
-`dpkg -l build-essential libncurses-dev bison flex libssl-dev libelf-dev libdw-dev dwarves gawk`
-安装对应包
-`sudo apt install -y build-essential libncurses-dev bison flex libssl-dev libelf-dev libdw-dev dwarves gawk`
-
-
-在对应根目录下进行模块编译配置
-方式一: 本地目录编译
-`make olddefconfig `  根据旧的.config生成.config文件
-
-`make modules_prepare`  准备模块化编译
-
-`make M=drivers/nvme/host modules` 模块编译
-
-方式二: 借用自带环境
-
-`make -C /lib/modules/6.17.0-41-generic/build M=$PWD/drivers/nvme/host modules`  
-
-编译出对应nvme.ko nvme-fabrics.ko nvme-fc.ko nvme-core.ko等等文件
+# 方式二: 借用自带环境
+$ make -C /lib/modules/6.17.0-41-generic/build M=$PWD/drivers/nvme/host modules
 
 (内核编译 make menuconfig  make -j$(nproc) )
 ```
-# 查看 /lib/modules/$(uname -r)/ nvme驱动信息
-$ modinfo nvme
 
-# 查看指定nvme.ko驱动信息
-$ modinfo drivers/nvme/host/nvme.ko
-
-$ modinfo drivers/nvme/host/nvme-core.ko
-
-# 查看指定nvme.ko驱动参数
-$ modinfo -p drivers/nvme/host/nvme.ko
+- 编译出对应nvme.ko nvme-fabrics.ko nvme-fc.ko nvme-core.ko等等文件
 
 
-# use_threaded_interrupts: (int)   开启线程化中断(驱动默认不开启---444)   
-# use_cmb_sqes:use controller's memory buffer for I/O SQes (bool)   (驱动默认开启---444)
-# max_host_mem_size_mb:Maximum Host Memory Buffer (HMB) size per controller (in MiB) (uint)     (驱动默认设置128---444)
-# sgl_threshold:Use SGLs when average request segment size is larger or equal to this size. Use 0 to disable SGLs. (uint)  (驱动默认设置32KB---644)
-# io_queue_depth:set io queue depth, should >= 2 and < 4096    (驱动默认设置1024---644)
-# write_queues:Number of queues to use for writes. If not set, reads and writes will share a queue set.   (驱动默认设置0---644)
-# poll_queues:Number of queues to use for polled IO.     (驱动默认设置0, 所有队列基于传统的硬件中断---644)
-# noacpi:disable acpi bios quirks (bool)    (驱动默认设置disable---444)
+### 1.2 模块加载与卸载
+```bash
+# 临时卸载对应驱动(先卸载nvme再卸载它的依赖nvme_core)
+# 系统不能在nvme盘上否则卸载崩溃
+$ sudo rmmod nvme
+$ sudo rmmod nvme_core
 
-# 查看指定nvme-core.ko驱动参数
+# 临时加载对应驱动(可附带参数)
+$ sudo insmod nvme_core.ko
+$ sudo insmod nvme.ko
+$ sudo insmod nvme.ko poll_queues=2 io_queue_depth=512
+$ lsmod | grep nvme
 
-
-# 查看对应参数
-# 查看线程化中断是否开启 (0代表关闭，1代表开启)
-$ cat /sys/module/nvme/parameters/use_threaded_interrupts
-
-# 查看是否启用了 CMB 内存缓冲区(Y代表开启，N代表关闭)
-$ cat /sys/module/nvme/parameters/use_cmb_sqes
-
-# 修改poll_queues (最好在启动项修改，以免只是软件修改硬件未同步)
-$ echo 2 | sudo tee /sys/module/nvme/parameters/poll_queues
-
+# 加载原先 `/lib/modules`的驱动
+$ sudo modprobe nvme
 ```
 
-临时卸载对应驱动(先卸载nvme再卸载它的依赖nvme_core)系统盘不能在nvme盘上否则崩溃
-`sudo rmmod nvme`
-`sudo rmmod nvme_core`
 
-临时加载对应驱动(先加载core再加载nvme, 可附带参数)
-`sudo insmod nvme_core.ko`
-`sudo insmod nvme.ko`
-`sudo insmod nvme.ko poll_queues=2 io_queue_depth=512`
-
-`lsmod | grep nvme`
-
-加载原先 `/lib/modules`的驱动
-`sudo modprobe nvme`
-
-```
-# 创建一个静态变量，默认设置为0
+### 1.3 模块调试与打印控制
+```c
+// 创建一个静态变量，默认设置为0
 static bool my_debug_mode = false;
-# 创造功能开关：将其注册为内核模块参数，类型为 bool，权限为 0644
+// 创造功能开关：将其注册为内核模块参数，类型为 bool，权限为 0644
 module_param(my_debug_mode, bool, 0644);
-# 编写说明书：让 modinfo 能够识别并打印这段解释
+// 编写说明书：让 modinfo 能够识别并打印这段解释
 MODULE_PARM_DESC(my_debug_mode, "Enable my custom NVMe driver deep debug logging (default: false)");
 
-# 可以通过实时修改或者驱动加载时修改参数，查看打印信息
-echo 1 | sudo tee /sys/module/nvme/parameters/my_debug_mode
+// 可以通过实时修改或者驱动加载时修改参数，查看打印信息
+// echo 1 | sudo tee /sys/module/nvme/parameters/my_debug_mode
 
-# 打印信息
+// 打印信息
 if (my_debug_mode) {
     dev_info(dev->dev, "MY_DEBUG: INFO!\n");
 }
-
 ```
 
 
-
-```
-
+**日志等级**
+```bash
 $ cat /proc/sys/kernel/printk
 4 4 1 7
 
-控制台小于 4 打印
-默认消息等级为 4
-第一个数字最小为 1
-出厂控制台等级为 7
+# 控制台小于 4 打印
+# 默认消息等级为 4
+# 第一个数字最小为 1
+# 出厂控制台等级为 7
 
-0 emergency 1 alert 2 critical 3 error 4 warning 5 notice 6 info 7 debug
-
-```
-
-### sysfs分析
-
-```
-/sys/class/nvme/nvme0/ 来自于内核源码/drivers/nvme/host/sysfs.c
-为/sys/devices/pci0000:00/0000:00:15.0/0000:03:00.0/nvme/nvme0的软链接
-
-
-$ ls /sys/class/nvme/nvme0  
-address    dev           kato   ng0n3/     nvme0n3/                  rescan_controller  state      uevent
-cntlid     device@       model  numa_node  passthru_err_log_enabled  reset_controller   subsysnqn
-cntrltype  firmware_rev  ng0n1/ nvme0n1/   power/                    serial             subsystem@
-dctype     hwmon1/       ng0n2/ nvme0n2/   queue_count               sqsize             transport
-
+# 0 emergency 1 alert 2 critical 3 error 4 warning 5 notice 6 info 7 debug
 ```
 
 
-### 结构体分析
 
-```
-# 结构体 nvme_dev
+## 2. 驱动数据结构
 
+### 2.1 `struct nvme_dev`
+
+```c
 struct nvme_dev {
     struct nvme_queue *queues;    // 硬件队列数组指针
 	struct blk_mq_tag_set tagset;    // IO请求tag标签集
@@ -180,12 +130,16 @@ struct nvme_dev {
 	u64 host_mem_size;          // 主机借给SSD内存大小
 	unsigned int nr_write_queues;      // 独立写队列数量
 	unsigned int nr_poll_queues;      // 开启IO polling队列数量
-    /*...*/
+    [...]
 
 };
+```
 
-# 结构体 nvme_queue
 
+
+### 2.2 `struct nvme_queue`
+
+```c
 struct nvme_queue {
     struct nvme_dev *dev;
 	struct nvme_descriptor_pools descriptor_pools;
@@ -214,11 +168,14 @@ struct nvme_queue {
 	__le32 *dbbuf_sq_ei;
 	__le32 *dbbuf_cq_ei;
 	struct completion delete_done;
-    /*...*/
+    [...]
 };
+```
 
-# 结构体 nvme_iod
 
+### 2.3 `struct nvme_iod`
+
+```c
 struct nvme_iod {
     struct nvme_request req;
 	struct nvme_command cmd;    // SQE cmd
@@ -234,10 +191,12 @@ struct nvme_iod {
 	struct nvme_sgl_desc *meta_descriptor;
 
 };
+```
 
 
-# 结构体 nvme_ctrl
+### 2.4 `struct nvme_ctrl`
 
+```c
 struct nvme_ctrl {
 	enum nvme_ctrl_state state;    // 控制器状态
 	const struct nvme_ctrl_ops *ops;
@@ -268,7 +227,7 @@ struct nvme_ctrl {
 	u32 hmpre;     // HMB最佳内存大小
 	u32 hmmin;     // 支持SSD的最小 HMB 内存大小 
 	struct nvme_fault_inject fault_inject;      // NVMe故障注入
-    /*...*/
+    [...]
 
 };
 ```
@@ -278,10 +237,12 @@ struct nvme_ctrl {
 
 
 
-### NVMe内核模块
+## 3. 驱动注册与操作
 
-```core.c```
-```
+### 3.1 core.c
+
+```c
+/* 1. 字符设备操作集 (core.c: 服务于/dev/nvme0 支持 nvme-cli 工具的 ioctl 与 io_uring) */
 static const struct file_operations nvme_dev_fops = {
 	.owner		= THIS_MODULE,
 	.open		= nvme_dev_open,
@@ -291,16 +252,32 @@ static const struct file_operations nvme_dev_fops = {
 	.uring_cmd	= nvme_dev_uring_cmd,
 };
 
-
+/*2. 命名空间字符设备操作集 (core.c: 服务于 /dev/ng0n1，提供绕过通用块层的纯粹直通通道，支持 io_uring 与ioctl) */
+static const struct file_operations nvme_ns_chr_fops = {
+	.owner		= THIS_MODULE,
+	.open		= nvme_ns_chr_open,
+	.release	= nvme_ns_chr_release,
+	.unlocked_ioctl	= nvme_ns_chr_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
+	.uring_cmd	= nvme_ns_chr_uring_cmd,
+	.uring_cmd_iopoll = nvme_ns_chr_uring_cmd_iopoll,
+};
 ```
 
 
-```pci.c```
+### 3.2 pci.c
 
-```
+```c
 [module_init] --> nvme_init()
 -> pci_register_driver(&nvme_driver)
+[module_exit] --> nvme_exit()
+-> pci_unregister_driver(&nvme_driver)
+```
 
+
+
+```c
+/* 2. PCIe 驱动注册 (pci.c: 系统总线枚举) */
 static struct pci_driver nvme_driver = {
 	.name		= "nvme",
 	.id_table	= nvme_id_table,
@@ -317,11 +294,11 @@ static struct pci_driver nvme_driver = {
 	.err_handler	= &nvme_err_handler,
 };
 
-[module_exit] --> nvme_exit()
--> pci_unregister_driver(&nvme_driver)
+```
 
----
 
+```c
+/* 3. 多队列块层 (pci.c: 桥接通用块层) */
 static const struct blk_mq_ops nvme_mq_admin_ops = {
 	.queue_rq	= nvme_queue_rq,
 	.complete	= nvme_pci_complete_rq,
@@ -343,13 +320,11 @@ static const struct blk_mq_ops nvme_mq_ops = {
 };
 ```
 
-- nvme_probe()
-- nvme_remove()
-- nvme_shutdown()
 
 
 
-```
+```c
+/* 4. 错误处理*/
 static const struct pci_error_handlers nvme_err_handler = {
 	.error_detected	= nvme_error_detected,    
 	.slot_reset	= nvme_slot_reset,
@@ -361,8 +336,8 @@ static const struct pci_error_handlers nvme_err_handler = {
 
 
 
----
-
+```c
+/* 5. 控制器状态*/
 nvme_ctrl_state
 - NVME_CTRL_NEW 0
 - NVME_CTRL_LIVE
@@ -371,12 +346,12 @@ nvme_ctrl_state
 - NVME_CTRL_DELETING
 - NVME_CTRL_DELETING_NOIO
 - NVME_CTRL_DEAD
-
-
-
-
 ```
 
+
+### 3.3 驱动探测与初始化
+
+```c
 nvme_probe()
   │
   ├── nvme_pci_alloc_dev(pdev, id) [pci.c]
@@ -468,24 +443,23 @@ nvme_probe()
   ├── nvme_start_ctrl(&dev->ctrl) [core.c]
   │   ├── nvme_enable_aen()                  // 下发 AEN 异步事件请求
   │   └── nvme_queue_scan()                  // 将 scan_work 扫描任务推入异步工作队列 nvme_wq
-  │
+  │                                          // 执行nvme_scan_work(),一系列过程之后注册/dev/nvme0n1和/dev/ng0n1
+  |                                     
   ├── nvme_put_ctrl(&dev->ctrl) 
   │   └── 释放 probe 过程中持有的临时控制器引用计数 (平衡计数器)
   │
   └── flush_work(&dev->ctrl.scan_work) 
       └── 同步等待扫描任务完成，确保 nvme_probe() 返回时，/dev/nvme0n1 节点出现在系统
-
-
-
 ```
 
 
 一次调用nvme_queue_rq()队列只写入一个SQE，最大传输数据(最小内存页大小 MPSMIN * 2^MDTS)(mpsmin一般为4KB也能大页内存2mb)
 
            
----
 
-### NVMe处理命令步骤
+## 4. 数据下发路径
+
+**NVMe处理命令步骤**
 - 主机写命令到 SQ
 - 主机写 SQ 的 DB，通知 SSD 取指
 - SSD 收到通知后， 到 SQ 取指
@@ -495,8 +469,9 @@ nvme_probe()
 - 收到中断，主机处理 CQ，查看指令完成状态
 - 主机处理完 CQ 中的指令执行结果，通过 DB 回复 SSD
 
+### 4.1 单请求下发与批量下发 
 
-```
+```c
 nvme_queue_rq()
   ├── nvme_prep_rq()        // 准备 command
   │   ├── nvme_setup_cmd() // 填充 64 字节 SQE
@@ -528,9 +503,10 @@ nvme_queue_rqs()
 
 
 
-```
 
+### 4.2 写入 SQ 环形缓冲区与门铃更新流程
 
+```c
 # 把64字节的NVMe命令复制到内存中由环形缓冲区构成的SQ中
 nvme_sq_copy_cmd(nvmeq, &iod->cmd);
 {
@@ -568,12 +544,11 @@ nvme_write_sq_db(nvmeq, bd->last);
 ```
 
 
----
 
 
+## 5. 中断响应路径
 
-
-```
+```c
 nvme_irq()                                    // [第三步] CPU 硬件中断唤醒
   │
   ├── nvme_poll_cq(nvmeq, &iob)  // 轮询 CQ 提取结果
@@ -612,3 +587,57 @@ nvme_irq()                                    // [第三步] CPU 硬件中断唤
   └── 阶段三：return IRQ_HANDLED                // 恢复 CPU 现场，退出中断
 ```
 
+
+
+## 6. 驱动模块与sysfs分析
+
+
+### 6.1 驱动模块参数
+```bash
+# 查看 /lib/modules/$(uname -r)/ nvme驱动信息
+$ modinfo nvme
+
+# 查看指定nvme.ko驱动信息
+$ modinfo drivers/nvme/host/nvme.ko
+
+$ modinfo drivers/nvme/host/nvme-core.ko
+
+# 查看指定nvme.ko驱动参数
+$ modinfo -p drivers/nvme/host/nvme.ko
+
+# use_threaded_interrupts: (int)   开启线程化中断(驱动默认不开启---444)   
+# use_cmb_sqes:use controller's memory buffer for I/O SQes (bool)   (驱动默认开启---444)
+# max_host_mem_size_mb:Maximum Host Memory Buffer (HMB) size per controller (in MiB) (uint)     (驱动默认设置128---444)
+# sgl_threshold:Use SGLs when average request segment size is larger or equal to this size. Use 0 to disable SGLs. (uint)  (驱动默认设置32KB---644)
+# io_queue_depth:set io queue depth, should >= 2 and < 4096    (驱动默认设置1024---644)
+# write_queues:Number of queues to use for writes. If not set, reads and writes will share a queue set.   (驱动默认设置0---644)
+# poll_queues:Number of queues to use for polled IO.     (驱动默认设置0, 所有队列基于传统的硬件中断---644)
+# noacpi:disable acpi bios quirks (bool)    (驱动默认设置disable---444)
+
+# 查看指定nvme-core.ko驱动参数
+
+
+# 查看线程化中断是否开启 (0代表关闭，1代表开启)
+$ cat /sys/module/nvme/parameters/use_threaded_interrupts
+
+# 查看是否启用了 CMB 内存缓冲区(Y代表开启，N代表关闭)
+$ cat /sys/module/nvme/parameters/use_cmb_sqes
+
+# 修改poll_queues (最好在启动项修改，以免只是软件修改硬件未同步)
+$ echo 2 | sudo tee /sys/module/nvme/parameters/poll_queues
+```
+
+
+
+
+### 6.2 sysfs分析
+`/sys/class/nvme/nvme0/` 来自于内核源码 `drivers/nvme/host/sysfs.c`，
+  - 为/sys/devices/pci0000:00/0000:00:15.0/0000:03:00.0/nvme/nvme0的软链接
+
+```bash
+$ ls /sys/class/nvme/nvme0  
+address    dev           kato   numa_node                 power/             serial     subsystem@
+cntlid     device@       model  nvme0n1/                  queue_count        sqsize     transport
+cntrltype  firmware_rev  ng0n1/ nvme0n2/                  rescan_controller  state      uevent
+dctype     hwmon1/       ng0n2/ passthru_err_log_enabled  reset_controller   subsysnqn
+```

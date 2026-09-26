@@ -1,0 +1,4 @@
+sphinx>=7.0.0
+myst-parser
+sphinx-clarity-theme
+sphinxcontrib-mermaid
