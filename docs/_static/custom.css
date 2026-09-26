@@ -1,0 +1,5 @@
+/* 消除树状图符号的红色报错线框 */
+.highlight .err {
+    border: none !important;
+    color: inherit !important;
+}
